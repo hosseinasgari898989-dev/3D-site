@@ -1,0 +1,24 @@
+'use strict';
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
+const state={perf:false,light:false};
+const toast=(msg)=>{const t=$('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2200)};
+const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const progress=()=>{const max=document.documentElement.scrollHeight-innerHeight;const el=$('#progress');if(el)el.style.transform=`scaleX(${max>0?scrollY/max:0})`};
+addEventListener('scroll',progress,{passive:true});addEventListener('resize',progress);progress();
+addEventListener('load',()=>setTimeout(()=>$('#topbar')?.classList.add('show'),180));
+$('#themeBtn')?.addEventListener('click',()=>{state.light=!state.light;document.body.classList.toggle('light',state.light);toast(state.light?'Light mode':'Dark mode')});
+$('#perfBtn')?.addEventListener('click',()=>{state.perf=!state.perf;document.body.classList.toggle('perf',state.perf);$('#perfBtn')?.classList.toggle('active',state.perf);toast(state.perf?'Performance mode on':'Performance mode off')});
+const heroVisual=$('#heroVisual'),orb=$('#orbCard');
+heroVisual?.addEventListener('pointermove',e=>{if(state.perf||reduced()||!orb)return;const r=heroVisual.getBoundingClientRect(),x=e.clientX-r.left,rX=x/r.width-.5,y=e.clientY-r.top,rY=y/r.height-.5;orb.style.transform=`perspective(900px) rotateX(${rY*-7}deg) rotateY(${rX*8}deg) translateZ(10px)`},{passive:true});
+heroVisual?.addEventListener('pointerleave',()=>orb&&(orb.style.transform=''));
+autoReveal('.card');
+function autoReveal(selector){const items=$$(selector);if(!items.length||reduced())return void items.forEach(x=>x.classList.add('show'));const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('show');io.unobserve(e.target)}}),{threshold:.16});items.forEach(x=>io.observe(x))}
+const chapters=$$('.chapter'),layers=$$('.sky .layer'),nodes=$$('.trail-node');
+const story=()=>{if(!chapters.length)return;const viewport=innerHeight;chapters.forEach((ch,i)=>{const r=ch.getBoundingClientRect(),local=Math.min(1,Math.max(0,(viewport-r.top)/(r.height+viewport*.12))),inner=ch.querySelector('.chapter-inner'),num=ch.querySelector('.chapter-num'),art=ch.querySelector('.chapter-art'),meter=ch.querySelector('.meter i');if(inner){const y=(.5-local)*24,s=.96+local*.04;inner.style.transform=`translateY(${y}px) scale(${s})`;inner.style.filter=`blur(${Math.max(0,(.08-local)*5)}px)`}if(num)num.style.transform=`translateY(${(local-.5)*70}px)`;if(art)art.style.transform=`translateY(${(local-.5)*-28}px) rotate(${(local-.5)*2}deg)`;if(meter)meter.style.width=`${Math.round(local*100)}%`;if(r.top<viewport*.62&&r.bottom>viewport*.38){layers.forEach((x,j)=>x.style.opacity=j===i?'1':'0');nodes[i]?.classList.add('on')}})};
+addEventListener('scroll',story,{passive:true});addEventListener('resize',story);story();
+const path=$('.trail-draw');if(path){requestAnimationFrame(()=>{path.style.strokeDasharray='1';path.style.strokeDashoffset='1';const len=path.getTotalLength();path.style.strokeDasharray=`${len}`;const tick=()=>{const rect=path.closest('.story').getBoundingClientRect(),p=Math.min(1,Math.max(0,(innerHeight*.56-rect.top)/(rect.height-innerHeight*.1)));path.style.strokeDashoffset=String(len*(1-p));requestAnimationFrame(tick)};tick()})}
+$('#sendBtn')?.addEventListener('click',()=>{const v=$('#formulaInput')?.value.trim();toast(v?`Demo input: ${v}`:'Try typing something')});
+const searchData=[['01 — Sticky Scroll Story','story'],['02 — SVG + Glow','features'],['03 — 3D Tilt','hero'],['04 — Glow Input','interaction'],['05 — Performance + Reduced Motion','features']];
+const panel=$('#searchPanel'),input=$('#searchInput'),results=$('#searchResults');
+function renderResults(q){if(!results)return;const rows=searchData.filter(([x])=>x.toLowerCase().includes(q.toLowerCase()));results.innerHTML=rows.length?rows.map(([x,id])=>`<button class="result" data-target="${id}">${x}</button>`).join(''):'<div class="result">No result.</div>';$$('.result[data-target]').forEach(b=>b.onclick=()=>{panel.classList.remove('open');document.getElementById(b.dataset.target)?.scrollIntoView({behavior:reduced()?'auto':'smooth'})})}
+$('#searchBtn')?.addEventListener('click',()=>{panel?.classList.toggle('open');if(panel?.classList.contains('open')){input?.focus();renderResults('')}});input?.addEventListener('input',e=>renderResults(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape')panel?.classList.remove('open');if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();panel?.classList.add('open');input?.focus()}});
