@@ -1,0 +1,113 @@
+name: Build and Deploy 3D Formula Demos
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare demo directories
+        run: |
+          rm -rf /tmp/formula-v2 /tmp/formula-v4 site
+          mkdir -p /tmp/formula-v2 /tmp/formula-v4 site/v2 site/v4
+
+      - name: Extract formula v2
+        run: unzip -q "new-chat.zip" -d /tmp/formula-v2
+
+      - name: Extract formula v4
+        run: unzip -q "(1)new-chat.zip" -d /tmp/formula-v4
+
+      - name: Build formula v2
+        working-directory: /tmp/formula-v2
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build formula v4
+        working-directory: /tmp/formula-v4
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemble Pages site
+        run: |
+          cp -R /tmp/formula-v2/dist/. site/v2/
+          cp -R /tmp/formula-v4/dist/. site/v4/
+
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en" dir="ltr">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>3D Site Formula — Live Demos</title>
+            <style>
+              :root{color-scheme:dark}
+              *{box-sizing:border-box}
+              body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050507;color:#fff;font-family:system-ui,sans-serif}
+              main{width:min(760px,92vw);padding:32px}
+              h1{font-size:clamp(2rem,6vw,4rem);margin:0 0 12px}
+              p{color:#a9a9b4;line-height:1.6}
+              .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:28px}
+              a{display:block;padding:22px;border:1px solid #26262d;border-radius:18px;background:#101014;color:#fff;text-decoration:none;transition:.2s}
+              a:hover{transform:translateY(-2px);border-color:#666}
+              small{display:block;color:#8f8f9b;margin-top:8px}
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>3D Site Formula</h1>
+              <p>Live references for the reusable 3D website formulas stored in this repository.</p>
+              <div class="grid">
+                <a href="./v2/">
+                  Formula v2
+                  <small>React + R3F + Drei + Lenis + Framer Motion</small>
+                </a>
+                <a href="./v4/">
+                  Formula v4
+                  <small>SCENE × DEPTH + SCROLL × MOTION + RULES ÷ COMPLEXITY</small>
+                </a>
+              </div>
+            </main>
+          </body>
+          </html>
+          EOF
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
